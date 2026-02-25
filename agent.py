@@ -2,12 +2,12 @@ import feedparser
 import requests
 import os
 from datetime import datetime, timedelta
-from google import genai
+from groq import Groq
 
 # ============================================
 # CONFIGURATION
 # ============================================
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO_NAME = os.environ.get("GITHUB_REPOSITORY")
@@ -26,10 +26,10 @@ TRACKS = {
         "keywords": [
             "developer", "API", "SDK", "integration",
             "infrastructure", "engineering", "open source",
-            "developer tools", "fintech stack", "payments API",
-            "embedded finance", "BaaS", "microservices",
-            "developer experience", "low-code", "no-code",
-            "serverless",
+            "developer tools", "fintech stack",
+            "payments API", "embedded finance", "BaaS",
+            "microservices", "developer experience",
+            "low-code", "no-code", "serverless",
         ],
     },
     "Designing Adaptive Revenue Models": {
@@ -153,8 +153,12 @@ def collect_rss_news():
             feed = feedparser.parse(feed_url)
             for entry in feed.entries[:10]:
                 articles.append({
-                    "title": entry.get("title", "No title"),
-                    "summary": entry.get("summary", "")[:500],
+                    "title": entry.get(
+                        "title", "No title"
+                    ),
+                    "summary": entry.get(
+                        "summary", ""
+                    )[:500],
                     "source": feed.feed.get(
                         "title", "Unknown"
                     ),
@@ -206,7 +210,9 @@ def collect_newsapi_news():
         except Exception as e:
             print(f"  Error searching '{term}': {e}")
 
-    print(f"  Found {len(articles)} articles from NewsAPI")
+    print(
+        f"  Found {len(articles)} articles from NewsAPI"
+    )
     return articles
 
 # ============================================
@@ -220,7 +226,9 @@ def remove_duplicates(articles):
         if key not in seen and key != "no title":
             seen.add(key)
             unique.append(article)
-    print(f"After removing duplicates: {len(unique)} articles")
+    print(
+        f"After removing duplicates: {len(unique)} articles"
+    )
     return unique
 
 # ============================================
@@ -230,7 +238,9 @@ def build_track_descriptions():
     text = ""
     for track_name, track_info in TRACKS.items():
         text += f"\n**{track_name}**\n"
-        text += f"  Focus: {track_info['description']}\n"
+        text += (
+            f"  Focus: {track_info['description']}\n"
+        )
         text += (
             f"  Related topics: "
             f"{', '.join(track_info['keywords'][:10])}\n"
@@ -241,10 +251,10 @@ def build_track_descriptions():
 # GENERATE THE SUMMARY WITH AI
 # ============================================
 def generate_summary(articles):
-    print("Generating summary with Gemini...")
+    print("Generating summary with Groq...")
 
     articles_text = ""
-    for i, a in enumerate(articles[:50], 1):
+    for i, a in enumerate(articles[:40], 1):
         articles_text += (
             f"\nArticle {i}:\n"
             f"Title: {a['title']}\n"
@@ -268,8 +278,7 @@ You have deep knowledge of:
 - Stripe's position as payments infrastructure for the 
   internet
 - The competitive landscape (Adyen, PayPal/Braintree, 
-  Square/Block, Checkout.com, Worldpay, Marqeta, Plaid, 
-  etc.)
+  Square/Block, Checkout.com, Worldpay, Marqeta, Plaid)
 
 Here are today's fintech articles:
 {articles_text}
@@ -287,14 +296,13 @@ The three most significant stories of the day. For each:
 - Headline and source with link
 - 3-4 sentence summary of what happened and why it matters
 - **What this means for Stripe:** 2-3 sentences analyzing 
-  how this news could affect Stripe's business, competitive 
+  how this could affect Stripe's business, competitive 
   position, product strategy, or customers. Be specific 
-  about which Stripe products or initiatives are relevant.
+  about which Stripe products are relevant.
 - **Content angle:** 1-3 sentences suggesting how Stripe's 
   content marketing team could respond. Think blog posts, 
   case studies, data reports, developer tutorials, thought 
-  leadership, social posts, or event session topics. Be 
-  specific and actionable.
+  leadership, social posts, or event session topics.
 
 # NEWS BY TRACK
 
@@ -302,16 +310,14 @@ Organize remaining notable stories under these six track
 headings. For each track use a ## subheading and include 
 the track description in italics.
 
-Then for each story under that track:
+For each story under that track:
 - Story headline, source, and link
 - 1-2 sentence summary
-- **Stripe relevance:** One sentence on the connection to 
-  Stripe
+- **Stripe relevance:** One sentence on connection to Stripe
 - **Content angle:** One sentence content idea
 
 If a track has no relevant news today, write "No major 
-stories today" and suggest one proactive content idea 
-related to the track theme.
+stories today" and suggest one proactive content idea.
 
 The six tracks are:
 1. Advancing Developer Craft
@@ -323,53 +329,58 @@ The six tracks are:
 
 # WHAT THIS MEANS FOR STRIPE
 
-A 4-6 sentence paragraph that synthesizes ALL of today's 
-news into a strategic view for Stripe. Consider competitive 
-implications, product opportunities or threats, market 
-shifts that affect Stripe's customers, and regulatory 
-changes that could impact Stripe's roadmap. Be candid, 
-specific, and analytical. Reference specific Stripe products.
+A 4-6 sentence paragraph synthesizing ALL of today's news 
+into a strategic view for Stripe. Consider competitive 
+implications, product opportunities, market shifts, and 
+regulatory changes. Be specific about Stripe products.
 
 # CONTENT MARKETING CHEAT SHEET
 
-A quick-reference list with 3-5 concrete content ideas 
-inspired by today's news. For each include:
-- The format (blog, tutorial, data report, social thread, 
-  video, case study, etc.)
-- The target audience (developers, founders, finance teams, 
-  etc.)
-- The relevant track
-- A one-line pitch
+3-5 concrete content ideas inspired by today's news. For 
+each include the format, target audience, relevant track, 
+and a one-line pitch.
 
 # TRENDS TO WATCH
 
-2-3 emerging patterns you notice across today's news that 
-Stripe should be paying attention to over the coming weeks 
-and months.
+2-3 emerging patterns across today's news that Stripe 
+should pay attention to.
 
 # QUICK HITS
 
-Any remaining noteworthy stories in one line each with 
-source links.
+Remaining noteworthy stories in one line each with links.
 
 FORMATTING RULES:
-- Use proper markdown: # for headers, ## for subheaders, 
-  **bold**, bullet points, and [links](url)
-- Keep it scannable — busy people will skim this
+- Use proper markdown: # headers, ## subheaders, **bold**, 
+  bullet points, and [links](url)
+- Keep it scannable
 - Always attribute stories to their source
 - Include links wherever possible
-- Be opinionated and specific — generic insights are 
-  not useful
-- If a story directly mentions Stripe, flag it prominently
+- Be opinionated and specific
+- If a story mentions Stripe, flag it prominently
 """
 
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-lite-001",
-        contents=prompt,
+    client = Groq(api_key=GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an expert fintech analyst and "
+                    "content strategist specializing in "
+                    "payments infrastructure."
+                ),
+            },
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        ],
+        max_tokens=4096,
+        temperature=0.3,
     )
 
-    return response.text
+    return response.choices[0].message.content
 
 # ============================================
 # POST AS A GITHUB ISSUE
@@ -381,7 +392,8 @@ def post_to_github_issue(summary):
     day_of_week = datetime.now().strftime("%A")
 
     url = (
-        f"https://api.github.com/repos/{REPO_NAME}/issues"
+        f"https://api.github.com/repos/"
+        f"{REPO_NAME}/issues"
     )
 
     headers = {
@@ -418,7 +430,9 @@ def post_to_github_issue(summary):
 def main():
     print("=" * 60)
     print("FINTECH NEWS AGENT — STRIPE EDITION")
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(
+        f"{datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
     print("=" * 60)
 
     all_articles = []
