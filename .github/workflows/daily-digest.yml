@@ -8,6 +8,8 @@ on:
 jobs:
   run-agent:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
 
     steps:
       - name: Get the code
@@ -25,5 +27,5 @@ jobs:
         env:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python agent.py
