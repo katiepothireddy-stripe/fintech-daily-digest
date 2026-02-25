@@ -351,7 +351,7 @@ FORMATTING RULES:
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     response = client.models.generate_content(
-        model="gemini-1.5-flash-latest",
+        model="gemini-2.5-flash-lite",
         contents=prompt,
     )
 
