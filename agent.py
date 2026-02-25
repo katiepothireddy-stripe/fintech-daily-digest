@@ -8,7 +8,7 @@ from google import genai
 # ============================================
 # CONFIGURATION
 # ============================================
-YOUR_EMAIL = "katiepothireddy@gmail.com"  # Change to your email
+YOUR_EMAIL = "katiepothireddy@stripe.com"  # Change to your email
 
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
