@@ -124,4 +124,325 @@ RSS_FEEDS = [
     "https://cointelegraph.com/rss",
     "https://www.theblock.co/rss.xml",
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
-    "https://t
+    "https://thenewstack.io/feed/",
+    "https://sdtimes.com/feed/",
+]
+
+SEARCH_TERMS = [
+    "fintech",
+    "digital payments",
+    "payment processing",
+    "neobank digital banking",
+    "fintech fraud prevention",
+    "marketplace platform payments",
+    "stablecoin crypto payments",
+    "fintech API developer",
+    "Stripe payments",
+    "subscription billing SaaS",
+]
+
+# ============================================
+# COLLECT NEWS FROM RSS FEEDS
+# ============================================
+def collect_rss_news():
+    print("Collecting from RSS feeds...")
+    articles = []
+
+    for feed_url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(feed_url)
+            for entry in feed.entries[:10]:
+                articles.append({
+                    "title": entry.get("title", "No title"),
+                    "summary": entry.get("summary", "")[:500],
+                    "source": feed.feed.get(
+                        "title", "Unknown"
+                    ),
+                    "link": entry.get("link", ""),
+                })
+        except Exception as e:
+            print(f"  Error with {feed_url}: {e}")
+
+    print(f"  Found {len(articles)} articles from RSS")
+    return articles
+
+# ============================================
+# COLLECT NEWS FROM NEWSAPI
+# ============================================
+def collect_newsapi_news():
+    print("Collecting from NewsAPI...")
+    articles = []
+    yesterday = (
+        datetime.now() - timedelta(days=1)
+    ).strftime("%Y-%m-%d")
+
+    for term in SEARCH_TERMS:
+        try:
+            url = "https://newsapi.org/v2/everything"
+            params = {
+                "q": term,
+                "from": yesterday,
+                "sortBy": "relevancy",
+                "language": "en",
+                "pageSize": 10,
+                "apiKey": NEWS_API_KEY,
+            }
+            response = requests.get(url, params=params)
+            data = response.json()
+
+            for article in data.get("articles", []):
+                articles.append({
+                    "title": article.get(
+                        "title", "No title"
+                    ),
+                    "summary": (
+                        article.get("description") or ""
+                    )[:500],
+                    "source": article.get(
+                        "source", {}
+                    ).get("name", "Unknown"),
+                    "link": article.get("url", ""),
+                })
+        except Exception as e:
+            print(f"  Error searching '{term}': {e}")
+
+    print(f"  Found {len(articles)} articles from NewsAPI")
+    return articles
+
+# ============================================
+# REMOVE DUPLICATE ARTICLES
+# ============================================
+def remove_duplicates(articles):
+    seen = set()
+    unique = []
+    for article in articles:
+        key = article["title"].lower().strip()[:60]
+        if key not in seen and key != "no title":
+            seen.add(key)
+            unique.append(article)
+    print(f"After removing duplicates: {len(unique)} articles")
+    return unique
+
+# ============================================
+# BUILD TRACK INFO FOR THE AI
+# ============================================
+def build_track_descriptions():
+    text = ""
+    for track_name, track_info in TRACKS.items():
+        text += f"\n**{track_name}**\n"
+        text += f"  Focus: {track_info['description']}\n"
+        text += (
+            f"  Related topics: "
+            f"{', '.join(track_info['keywords'][:10])}\n"
+        )
+    return text
+
+# ============================================
+# GENERATE THE SUMMARY WITH AI
+# ============================================
+def generate_summary(articles):
+    print("Generating summary with Gemini...")
+
+    articles_text = ""
+    for i, a in enumerate(articles[:50], 1):
+        articles_text += (
+            f"\nArticle {i}:\n"
+            f"Title: {a['title']}\n"
+            f"Source: {a['source']}\n"
+            f"Summary: {a['summary']}\n"
+            f"Link: {a['link']}\n"
+            f"---"
+        )
+
+    track_descriptions = build_track_descriptions()
+
+    prompt = f"""You are a senior fintech analyst who also 
+advises Stripe's content marketing team. You are writing a 
+daily internal briefing for 
+{datetime.now().strftime('%A, %B %d, %Y')}.
+
+You have deep knowledge of:
+- Stripe's products (Payments, Billing, Connect, Radar, 
+  Treasury, Issuing, Atlas, Identity, Tax, Revenue 
+  Recognition, Bridge and stablecoins)
+- Stripe's position as payments infrastructure for the 
+  internet
+- The competitive landscape (Adyen, PayPal/Braintree, 
+  Square/Block, Checkout.com, Worldpay, Marqeta, Plaid, 
+  etc.)
+
+Here are today's fintech articles:
+{articles_text}
+
+Here are the content tracks to organize news around:
+{track_descriptions}
+
+Create a daily digest with ALL of these sections in this 
+exact order. Use markdown formatting so it looks great as 
+a GitHub Issue.
+
+# TOP 3 STORIES
+
+The three most significant stories of the day. For each:
+- Headline and source with link
+- 3-4 sentence summary of what happened and why it matters
+- **What this means for Stripe:** 2-3 sentences analyzing 
+  how this news could affect Stripe's business, competitive 
+  position, product strategy, or customers. Be specific 
+  about which Stripe products or initiatives are relevant.
+- **Content angle:** 1-3 sentences suggesting how Stripe's 
+  content marketing team could respond. Think blog posts, 
+  case studies, data reports, developer tutorials, thought 
+  leadership, social posts, or event session topics. Be 
+  specific and actionable.
+
+# NEWS BY TRACK
+
+Organize remaining notable stories under these six track 
+headings. For each track use a ## subheading and include 
+the track description in italics.
+
+Then for each story under that track:
+- Story headline, source, and link
+- 1-2 sentence summary
+- **Stripe relevance:** One sentence on the connection to 
+  Stripe
+- **Content angle:** One sentence content idea
+
+If a track has no relevant news today, write "No major 
+stories today" and suggest one proactive content idea 
+related to the track theme.
+
+The six tracks are:
+1. Advancing Developer Craft
+2. Designing Adaptive Revenue Models
+3. Charting the Future of Payments
+4. Optimizing the Economics of Risk
+5. Growing Platform Economies
+6. Reaching Global Markets with Stablecoins and Crypto
+
+# WHAT THIS MEANS FOR STRIPE
+
+A 4-6 sentence paragraph that synthesizes ALL of today's 
+news into a strategic view for Stripe. Consider competitive 
+implications, product opportunities or threats, market 
+shifts that affect Stripe's customers, and regulatory 
+changes that could impact Stripe's roadmap. Be candid, 
+specific, and analytical. Reference specific Stripe products.
+
+# CONTENT MARKETING CHEAT SHEET
+
+A quick-reference list with 3-5 concrete content ideas 
+inspired by today's news. For each include:
+- The format (blog, tutorial, data report, social thread, 
+  video, case study, etc.)
+- The target audience (developers, founders, finance teams, 
+  etc.)
+- The relevant track
+- A one-line pitch
+
+# TRENDS TO WATCH
+
+2-3 emerging patterns you notice across today's news that 
+Stripe should be paying attention to over the coming weeks 
+and months.
+
+# QUICK HITS
+
+Any remaining noteworthy stories in one line each with 
+source links.
+
+FORMATTING RULES:
+- Use proper markdown: # for headers, ## for subheaders, 
+  **bold**, bullet points, and [links](url)
+- Keep it scannable — busy people will skim this
+- Always attribute stories to their source
+- Include links wherever possible
+- Be opinionated and specific — generic insights are 
+  not useful
+- If a story directly mentions Stripe, flag it prominently
+"""
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-lite-001",
+        contents=prompt,
+    )
+
+    return response.text
+
+# ============================================
+# POST AS A GITHUB ISSUE
+# ============================================
+def post_to_github_issue(summary):
+    print("Posting digest as GitHub Issue...")
+
+    today = datetime.now().strftime("%b %d, %Y")
+    day_of_week = datetime.now().strftime("%A")
+
+    url = (
+        f"https://api.github.com/repos/{REPO_NAME}/issues"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+    }
+
+    payload = {
+        "title": (
+            f"Fintech Daily Digest — "
+            f"{day_of_week}, {today}"
+        ),
+        "body": summary,
+        "labels": ["daily-digest"],
+    }
+
+    response = requests.post(
+        url, json=payload, headers=headers
+    )
+
+    if response.status_code == 201:
+        issue_url = response.json().get("html_url", "")
+        print(f"  Issue created successfully!")
+        print(f"  View it at: {issue_url}")
+    else:
+        print(
+            f"  Error creating issue: "
+            f"{response.status_code} - {response.text}"
+        )
+
+# ============================================
+# MAIN
+# ============================================
+def main():
+    print("=" * 60)
+    print("FINTECH NEWS AGENT — STRIPE EDITION")
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print("=" * 60)
+
+    all_articles = []
+    all_articles.extend(collect_rss_news())
+    all_articles.extend(collect_newsapi_news())
+
+    all_articles = remove_duplicates(all_articles)
+
+    if not all_articles:
+        print("No articles found today. Exiting.")
+        return
+
+    print(
+        f"\nTotal unique articles to analyze: "
+        f"{len(all_articles)}"
+    )
+
+    summary = generate_summary(all_articles)
+    print("\n--- PREVIEW ---")
+    print(summary[:500] + "...")
+
+    post_to_github_issue(summary)
+
+    print("\nDone!")
+
+if __name__ == "__main__":
+    main()
